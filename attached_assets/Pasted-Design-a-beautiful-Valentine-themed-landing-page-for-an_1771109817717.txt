@@ -1,0 +1,82 @@
+Design a beautiful Valentine-themed landing page for an AI-powered greeting card app that creates personalized animated video cards.
+
+The mood should feel romantic, warm, playful, and emotionally expressive — not cheesy, not corporate. The design should feel premium, modern, and delightful.
+
+Overall aesthetic:
+- Soft romantic gradients (pink, rose, lavender, peach, cream)
+- Subtle glowing highlights
+- Floating heart particles in background
+- Gentle parallax motion
+- Soft blur and glassmorphism panels
+- Smooth rounded edges
+- Elegant spacing and breathable layout
+
+Background animation:
+- Slow floating hearts and sparkles
+- Soft gradient waves moving subtly
+- Animated light glow behind hero section
+- Motion should be calm and dreamy, not distracting
+
+Typography:
+- Elegant serif headline font (romantic feel)
+- Clean modern sans-serif for UI text
+- Handwritten accent font for emotional highlights
+- Large expressive hero typography
+
+Hero section:
+- Headline: emotional and bold
+- Subheadline describing AI personalization
+- Animated preview of greeting card video
+- Primary CTA button: glowing, hover pulse effect
+- Secondary CTA: soft outline button
+- Floating animated card mockups
+
+Interactive buttons:
+- Smooth hover glow
+- Heart pulse animation on click
+- Micro-bounce interaction
+- Gradient shimmer effect
+- Rounded pill shapes
+
+Workflow explanation section:
+Use animated illustrations to show steps:
+
+Step 1: Choose occasion
+Step 2: Tell us about your loved one
+Step 3: AI creates personalized art + message
+Step 4: Send animated video card
+
+Each step should have:
+- Animated icon or mini animation
+- Floating transitions
+- Scroll-triggered motion
+- Soft fade and slide effects
+
+Card showcase section:
+- Carousel of animated card previews
+- Hover to play animation
+- Soft drop shadows
+- Glowing frame on focus
+
+Emotional highlights section:
+- Testimonials floating in soft bubbles
+- Handwritten quotes
+- Subtle sparkle animation
+
+Footer:
+- Calm gradient fade
+- Minimal icons
+- Romantic tone
+
+Mood keywords:
+dreamy, heartfelt, magical, intimate, joyful, modern romance
+
+Avoid:
+- harsh neon colors
+- heavy dark themes
+- cluttered UI
+- corporate dashboard style
+- overly childish visuals
+
+The page should feel like a mix of:
+modern design + romantic storytelling + creative studio energy.
