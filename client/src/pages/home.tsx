@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Heart, Gift, Cake, Star, Sparkles, ArrowRight, ArrowLeft,
   Download, RotateCcw, Check, Loader2, Copy, PartyPopper,
@@ -223,6 +223,31 @@ export default function Home() {
 
   const activeBackgroundImage = customBgImage || (BACKGROUNDS.find((b) => b.id === backgroundTheme) || BACKGROUNDS[0]).image;
 
+  const creditsQuery = useQuery<{
+    creditsUsed: number;
+    creditsRemaining: number;
+    creditLimit: number;
+    costs: { textGeneration: number; imageGeneration: number; videoGeneration: number };
+  }>({
+    queryKey: ["/api/credits"],
+  });
+
+  const credits = creditsQuery.data;
+
+  const handleCreditError = (error: unknown) => {
+    const err = error as { message?: string };
+    if (err?.message?.includes("429") || err?.message?.includes("Credit limit")) {
+      toast({
+        title: "Credits used up",
+        description: "You've used all your free credits for this session. Come back tomorrow for more!",
+        variant: "destructive",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/credits"] });
+      return true;
+    }
+    return false;
+  };
+
   const generateMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/cards/generate", {
@@ -237,13 +262,16 @@ export default function Home() {
     onSuccess: (data: { message: string }) => {
       setMessage(data.message);
       setStep(3);
+      queryClient.invalidateQueries({ queryKey: ["/api/credits"] });
     },
-    onError: () => {
-      toast({
-        title: "Oops!",
-        description: "Couldn't generate your message. Please try again.",
-        variant: "destructive",
-      });
+    onError: (error) => {
+      if (!handleCreditError(error)) {
+        toast({
+          title: "Oops!",
+          description: "Couldn't generate your message. Please try again.",
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -260,6 +288,10 @@ export default function Home() {
     },
     onSuccess: (data: { message: string }) => {
       setMessage(data.message);
+      queryClient.invalidateQueries({ queryKey: ["/api/credits"] });
+    },
+    onError: (error) => {
+      handleCreditError(error);
     },
   });
 
@@ -273,12 +305,15 @@ export default function Home() {
     },
     onSuccess: (data: { imageUrl: string }) => {
       setGeneratedArtUrl(data.imageUrl);
+      queryClient.invalidateQueries({ queryKey: ["/api/credits"] });
     },
-    onError: () => {
-      toast({
-        title: "Art generation note",
-        description: "Couldn't generate the art image. You can try again from the preview.",
-      });
+    onError: (error) => {
+      if (!handleCreditError(error)) {
+        toast({
+          title: "Art generation note",
+          description: "Couldn't generate the art image. You can try again from the preview.",
+        });
+      }
     },
   });
 
@@ -452,11 +487,23 @@ export default function Home() {
             ))}
           </div>
         )}
-        {step > 0 && (
-          <Button variant="ghost" size="sm" onClick={resetWizard} data-testid="button-start-over">
-            Start Over
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {credits && (
+            <Badge
+              variant={credits.creditsRemaining <= 2 ? "destructive" : "secondary"}
+              className="text-xs"
+              data-testid="badge-credits"
+            >
+              <Sparkles className="w-3 h-3 mr-1" />
+              {credits.creditsRemaining}/{credits.creditLimit} credits
+            </Badge>
+          )}
+          {step > 0 && (
+            <Button variant="ghost" size="sm" onClick={resetWizard} data-testid="button-start-over">
+              Start Over
+            </Button>
+          )}
+        </div>
       </header>
 
       <main className="relative z-10">
@@ -749,7 +796,9 @@ function HeroSection({ onStart }: { onStart: () => void }) {
             </Badge>
           </motion.div>
           <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold leading-[1.1] tracking-tight text-foreground" data-testid="text-hero-headline">
-            Words that make
+            Words and art that
+            <br />
+            come alive to make
             <br />
             <span className="relative inline-block">
               <span className="bg-gradient-to-r from-pink-500 via-rose-400 to-violet-500 bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient-shift">
@@ -1635,9 +1684,20 @@ function ExportScreen({
         setVideoStatus("failed");
         setVideoError("No task ID received");
       }
-    } catch {
-      setVideoStatus("failed");
-      setVideoError("Failed to start video generation");
+    } catch (error) {
+      const err = error as { message?: string };
+      if (err?.message?.includes("429") || err?.message?.includes("Credit limit")) {
+        toast({
+          title: "Credits used up",
+          description: "You've used all your free credits for this session. Come back tomorrow for more!",
+          variant: "destructive",
+        });
+        setVideoStatus("idle");
+      } else {
+        setVideoStatus("failed");
+        setVideoError("Failed to start video generation");
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/credits"] });
     }
   };
 

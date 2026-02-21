@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertGreetingCardSchema } from "@shared/schema";
@@ -9,12 +9,68 @@ const MINIMAX_VIDEO_API_URL = "https://api.minimax.io/v1/video_generation";
 const MINIMAX_VIDEO_QUERY_URL = "https://api.minimax.io/v1/query/video_generation";
 const MINIMAX_FILE_RETRIEVE_URL = "https://api.minimax.io/v1/files/retrieve";
 
+const SESSION_CREDIT_LIMIT = 10;
+
+const CREDIT_COSTS: Record<string, number> = {
+  "/api/cards/generate": 1,
+  "/api/cards/generate-image": 2,
+  "/api/cards/generate-video": 3,
+};
+
+function requireCredits(cost: number) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.session) {
+      return res.status(500).json({ error: "Session not available" });
+    }
+
+    if (req.session.creditsUsed === undefined) {
+      req.session.creditsUsed = 0;
+      req.session.createdAt = Date.now();
+    }
+
+    const used = req.session.creditsUsed;
+    const remaining = SESSION_CREDIT_LIMIT - used;
+
+    if (remaining < cost) {
+      return res.status(429).json({
+        error: "Credit limit reached",
+        message: `You've used all your credits for this session. You have ${remaining} credit(s) remaining but this action requires ${cost}.`,
+        creditsUsed: used,
+        creditsRemaining: remaining,
+        creditLimit: SESSION_CREDIT_LIMIT,
+      });
+    }
+
+    next();
+  };
+}
+
+function deductCredits(req: Request, cost: number) {
+  if (req.session) {
+    req.session.creditsUsed = (req.session.creditsUsed || 0) + cost;
+  }
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
 
-  app.post("/api/cards/generate", async (req, res) => {
+  app.get("/api/credits", (req, res) => {
+    const creditsUsed = req.session?.creditsUsed || 0;
+    res.json({
+      creditsUsed,
+      creditsRemaining: SESSION_CREDIT_LIMIT - creditsUsed,
+      creditLimit: SESSION_CREDIT_LIMIT,
+      costs: {
+        textGeneration: CREDIT_COSTS["/api/cards/generate"],
+        imageGeneration: CREDIT_COSTS["/api/cards/generate-image"],
+        videoGeneration: CREDIT_COSTS["/api/cards/generate-video"],
+      },
+    });
+  });
+
+  app.post("/api/cards/generate", requireCredits(CREDIT_COSTS["/api/cards/generate"]), async (req, res) => {
     try {
       const { occasion, recipientName, senderName, tone, customNote } = req.body;
 
@@ -71,14 +127,16 @@ Guidelines:
 
       const message = data.choices?.[0]?.message?.content?.trim() || "Every moment with you is a gift.";
 
-      res.json({ message });
+      deductCredits(req, CREDIT_COSTS["/api/cards/generate"]);
+      const creditsUsed = req.session?.creditsUsed || 0;
+      res.json({ message, creditsUsed, creditsRemaining: SESSION_CREDIT_LIMIT - creditsUsed });
     } catch (error) {
       console.error("Error generating card message:", error);
       res.status(500).json({ error: "Failed to generate message" });
     }
   });
 
-  app.post("/api/cards/generate-image", async (req, res) => {
+  app.post("/api/cards/generate-image", requireCredits(CREDIT_COSTS["/api/cards/generate-image"]), async (req, res) => {
     try {
       const { customNote, occasion } = req.body;
 
@@ -128,14 +186,16 @@ Guidelines:
         return res.status(502).json({ error: "No image was generated" });
       }
 
-      res.json({ imageUrl });
+      deductCredits(req, CREDIT_COSTS["/api/cards/generate-image"]);
+      const creditsUsed = req.session?.creditsUsed || 0;
+      res.json({ imageUrl, creditsUsed, creditsRemaining: SESSION_CREDIT_LIMIT - creditsUsed });
     } catch (error) {
       console.error("Error generating card image:", error);
       res.status(500).json({ error: "Failed to generate image" });
     }
   });
 
-  app.post("/api/cards/generate-video", async (req, res) => {
+  app.post("/api/cards/generate-video", requireCredits(CREDIT_COSTS["/api/cards/generate-video"]), async (req, res) => {
     try {
       const { firstFrameImageUrl, lastFrameImageBase64, prompt } = req.body;
 
@@ -184,7 +244,9 @@ Guidelines:
         return res.status(502).json({ error: "No task ID returned from video generation" });
       }
 
-      res.json({ taskId: data.task_id });
+      deductCredits(req, CREDIT_COSTS["/api/cards/generate-video"]);
+      const creditsUsed = req.session?.creditsUsed || 0;
+      res.json({ taskId: data.task_id, creditsUsed, creditsRemaining: SESSION_CREDIT_LIMIT - creditsUsed });
     } catch (error) {
       console.error("Error submitting video generation task:", error);
       res.status(500).json({ error: "Failed to submit video generation" });
